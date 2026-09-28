@@ -1,0 +1,32 @@
+{
+  "state": {
+    "band": [95, 105],
+    "seq": 0, "bids": [], "asks": [], "hidden": [], "trades": [], "rejects": [],
+    "cancels": 0, "cancelled_qty": 0, "dropped": [], "dropped_qty": 0,
+    "traded": 0, "accepted": 0, "accepted_qty": 0, "used": []
+  },
+  "events": [
+    { "kind": "limit", "id": 101, "side": "sell", "price": 100, "qty": 5, "display": 2 },
+    { "kind": "limit", "id": 102, "side": "sell", "price": 100, "qty": 3 },
+    { "kind": "limit", "id": 103, "side": "sell", "price": 101, "qty": 4 },
+    { "kind": "limit", "id": 201, "side": "buy", "price": 100, "qty": 4 },
+    { "kind": "limit", "id": 202, "side": "buy", "price": 99, "qty": 2 },
+    { "kind": "cancel", "id": 102 },
+    { "kind": "limit", "id": 203, "side": "buy", "price": 106, "qty": 1 },
+    { "kind": "market", "id": 301, "side": "buy", "qty": 5 },
+    { "kind": "limit", "id": 104, "side": "sell", "price": 98, "qty": 6 },
+    { "kind": "limit", "id": 204, "side": "buy", "price": 104, "qty": 3 },
+    { "kind": "cancel", "id": 103 },
+    { "kind": "limit", "id": 205, "side": "buy", "price": 97, "qty": 2, "display": 1 },
+    { "kind": "limit", "id": 105, "side": "sell", "price": 95, "qty": 2 },
+    { "kind": "limit", "id": 205, "side": "buy", "price": 97, "qty": 1 },
+    { "kind": "limit", "id": 206, "side": "buy", "price": 104, "qty": 1, "display": 3 },
+    { "kind": "limit", "id": 207, "side": "buy", "price": 104, "qty": 2 },
+    { "kind": "cancel", "id": 104 },
+    { "kind": "limit", "id": 106, "side": "sell", "price": 93, "qty": 1 },
+    { "kind": "limit", "id": 107, "side": "sell", "price": 99, "qty": 3 },
+    { "kind": "market", "id": 302, "side": "sell", "qty": 9 },
+    { "kind": "limit", "id": 208, "side": "buy", "price": 96, "qty": 3 },
+    { "kind": "limit", "id": 108, "side": "sell", "price": 102, "qty": 4, "display": 2 }
+  ]
+}

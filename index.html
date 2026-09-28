@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>bookmatch 盘口阶梯撮合台</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#0d1117;color:#e6edf3}
+.wrap{display:grid;grid-template-columns:1fr;gap:14px;padding:16px}
+.card{background:#161b22;border:1px solid #26303d;border-radius:12px;padding:12px}
+.row{display:grid;grid-template-columns:minmax(360px,1fr) 300px;gap:14px;align-items:start}
+canvas{background:#0b1017;border-radius:10px;width:100%;height:auto}
+button{font:inherit;padding:5px 11px;margin:0 8px 8px 0;border:1px solid #2c3a4d;border-radius:8px;background:#1c2430;color:#e6edf3;cursor:pointer}
+button.main{background:#2f81f7;border-color:#2f81f7}
+input,select{font:inherit;padding:4px 8px;border:1px solid #2c3a4d;border-radius:8px;background:#0b1017;color:#e6edf3;width:88px}
+pre{background:#070b11;color:#a8d6ff;padding:10px;border-radius:8px;overflow:auto;font-size:12px}
+.chip{display:inline-block;font-size:12px;padding:2px 9px;border-radius:999px;background:#1f2a37;color:#a8d6ff;margin-right:6px}
+.chip.bad{background:#3a1f24;color:#ff9aa2}
+.tape{margin:0;padding:0 0 0 2px;max-height:190px;overflow:auto}
+.tape li{list-style:none;font-size:13px;padding:2px 0;border-bottom:1px dashed #212b36}
+.buy{color:#3fb950}
+.sell{color:#f778ba}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <canvas id="ladder" width="900" height="320"></canvas>
+    <div id="chips" style="margin-top:8px"></div>
+  </div>
+  <div class="row">
+    <div class="card">
+      <h2 style="font-size:13px;color:#8b98a8;margin:0 0 8px">成交明细</h2>
+      <ul id="tape" class="tape"></ul>
+      <pre id="out">还没跑</pre>
+    </div>
+    <div class="card">
+      <h2 style="font-size:13px;color:#8b98a8;margin:0 0 8px">下单与撤单</h2>
+      <div>方向 <select id="side"><option value="buy">买</option><option value="sell">卖</option></select></div>
+      <div style="margin-top:6px">价格 <input id="price" type="number" value="100"></div>
+      <div style="margin-top:6px">数量 <input id="qty" type="number" value="2"></div>
+      <div style="margin-top:6px">显示量 <input id="display" type="number" placeholder="空为全额"></div>
+      <div style="margin-top:8px">
+        <button id="doLimit" class="main">限价单</button>
+        <button id="doMarket">市价单</button>
+        <button id="doCancel">撤单</button>
+      </div>
+      <div style="margin-top:6px">订单号 <input id="oid" type="number" value="501"></div>
+      <div id="log" style="font-size:12px;color:#8b98a8;margin-top:8px">点上面的按钮开始。</div>
+    </div>
+  </div>
+</div>
+<div id="scene" hidden>{
+  "state": {
+    "band": [95, 105],
+    "seq": 0, "bids": [], "asks": [], "hidden": [], "trades": [], "rejects": [],
+    "cancels": 0, "cancelled_qty": 0, "dropped": [], "dropped_qty": 0,
+    "traded": 0, "accepted": 0, "accepted_qty": 0, "used": []
+  },
+  "events": [
+    { "kind": "limit", "id": 101, "side": "sell", "price": 100, "qty": 5, "display": 2 },
+    { "kind": "limit", "id": 102, "side": "sell", "price": 100, "qty": 3 },
+    { "kind": "limit", "id": 103, "side": "sell", "price": 101, "qty": 4 },
+    { "kind": "limit", "id": 201, "side": "buy", "price": 100, "qty": 4 },
+    { "kind": "limit", "id": 202, "side": "buy", "price": 99, "qty": 2 },
+    { "kind": "cancel", "id": 102 },
+    { "kind": "limit", "id": 203, "side": "buy", "price": 106, "qty": 1 },
+    { "kind": "market", "id": 301, "side": "buy", "qty": 5 },
+    { "kind": "limit", "id": 104, "side": "sell", "price": 98, "qty": 6 },
+    { "kind": "limit", "id": 204, "side": "buy", "price": 104, "qty": 3 },
+    { "kind": "cancel", "id": 103 },
+    { "kind": "limit", "id": 205, "side": "buy", "price": 97, "qty": 2, "display": 1 },
+    { "kind": "limit", "id": 105, "side": "sell", "price": 95, "qty": 2 },
+    { "kind": "limit", "id": 205, "side": "buy", "price": 97, "qty": 1 },
+    { "kind": "limit", "id": 206, "side": "buy", "price": 104, "qty": 1, "display": 3 },
+    { "kind": "limit", "id": 207, "side": "buy", "price": 104, "qty": 2 },
+    { "kind": "cancel", "id": 104 },
+    { "kind": "limit", "id": 106, "side": "sell", "price": 93, "qty": 1 },
+    { "kind": "limit", "id": 107, "side": "sell", "price": 99, "qty": 3 },
+    { "kind": "market", "id": 302, "side": "sell", "qty": 9 },
+    { "kind": "limit", "id": 208, "side": "buy", "price": 96, "qty": 3 },
+    { "kind": "limit", "id": 108, "side": "sell", "price": 102, "qty": 4, "display": 2 }
+  ]
+}</div>
+<script type="module">
+import { render } from "./app.js";
+
+const spec = JSON.parse(document.getElementById("scene").textContent);
+const canvas = document.getElementById("ladder");
+const ctx = canvas.getContext("2d");
+let nextId = 501;
+
+function chip(label, bad) {
+  const span = document.createElement("span");
+  span.className = bad ? "chip bad" : "chip";
+  span.textContent = label;
+  return span;
+}
+
+function drawLadder(view) {
+  const band = spec.state.band;
+  const levels = [];
+  for (const row of view.bid_levels) { levels.push([row[0], row[1], "buy"]); }
+  for (const row of view.ask_levels) { levels.push([row[0], row[1], "sell"]); }
+  const prices = [band[0], band[1]];
+  for (const row of levels) { prices.push(row[0]); }
+  const low = Math.min.apply(null, prices) - 1;
+  const high = Math.max.apply(null, prices) + 1;
+  const xOf = function (price) { return 50 + (price - low) / (high - low) * (canvas.width - 100); };
+  const yOf = function (qty) { return canvas.height - 40 - qty * 12; };
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = "#212b36";
+  ctx.beginPath();
+  ctx.moveTo(40, canvas.height - 40);
+  ctx.lineTo(canvas.width - 40, canvas.height - 40);
+  ctx.stroke();
+  ctx.fillStyle = "#8b98a8";
+  ctx.font = "11px system-ui";
+  for (let price = band[0]; price <= band[1]; price += 1) {
+    ctx.fillText(String(price), xOf(price) - 8, canvas.height - 22);
+  }
+  for (const row of levels) {
+    const price = row[0];
+    const qty = row[1];
+    const x = xOf(price);
+    const top = yOf(qty);
+    ctx.fillStyle = row[2] === "buy" ? "rgba(63,185,80,0.75)" : "rgba(247,120,186,0.75)";
+    ctx.fillRect(x - 9, top, 18, canvas.height - 40 - (top - 0) - 0);
+    ctx.fillStyle = "#e6edf3";
+    ctx.fillText(String(qty), x - 4, top - 4);
+  }
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = "#3d4b5c";
+  ctx.beginPath();
+  ctx.moveTo(xOf(spec.state.band[0]), 10);
+  ctx.lineTo(xOf(spec.state.band[0]), canvas.height - 40);
+  ctx.moveTo(xOf(spec.state.band[1]), 10);
+  ctx.lineTo(xOf(spec.state.band[1]), canvas.height - 40);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function draw() {
+  const view = render(spec);
+  const chips = document.getElementById("chips");
+  chips.textContent = "";
+  const bestBid = view.bids.length > 0 ? view.bids[0][1] : 0;
+  const bestAsk = view.asks.length > 0 ? view.asks[0][1] : 0;
+  chips.appendChild(chip("买一 " + bestBid + " / 卖一 " + bestAsk));
+  chips.appendChild(chip("成交量 " + view.traded_qty + "（" + view.trade_count + " 笔）"));
+  chips.appendChild(chip("受理 " + view.accepted + " / 拒单 " + view.reject_count));
+  chips.appendChild(chip("盘上剩余 " + view.rest_qty + " / 撤销量 " + view.cancelled_qty));
+  chips.appendChild(chip("丢弃量 " + view.dropped_qty));
+  chips.appendChild(chip("无交叉 " + view.no_cross, !view.no_cross));
+  chips.appendChild(chip("优先 " + view.priority_ok, !view.priority_ok));
+  chips.appendChild(chip("守恒 " + view.conservation_ok, !view.conservation_ok));
+  chips.appendChild(chip("显示一致 " + view.display_ok, !view.display_ok));
+  drawLadder(view);
+  const tape = document.getElementById("tape");
+  tape.textContent = "";
+  for (const row of view.trades.slice(-12).reverse()) {
+    const item = document.createElement("li");
+    item.textContent = "吃单 " + row[0] + " 对 挂单 " + row[1] + " 成交 " + row[3] + " 手，价 " + row[2];
+    tape.appendChild(item);
+  }
+  document.getElementById("out").textContent = JSON.stringify({
+    bids: view.bids, asks: view.asks, hidden: view.hidden_book,
+    traded: view.traded_qty, rejects: view.rejects, dropped: view.dropped
+  }, null, 1);
+  const last = view.rejects.length > 0 ? view.rejects[view.rejects.length - 1] : null;
+  document.getElementById("log").textContent = last
+    ? "最近拒单：订单 " + last[0] + " 报 " + last[1]
+    : "还没有拒单。";
+}
+
+function pushEvent(event) {
+  spec.events.push(event);
+  draw();
+}
+
+document.getElementById("doLimit").addEventListener("click", function () {
+  const box = document.getElementById("display");
+  const oid = Number(document.getElementById("oid").value);
+  const event = { kind: "limit", id: oid, side: document.getElementById("side").value,
+                  price: Number(document.getElementById("price").value),
+                  qty: Number(document.getElementById("qty").value) };
+  if (box.value !== "") { event.display = Number(box.value); }
+  nextId = oid + 1;
+  document.getElementById("oid").value = String(nextId);
+  pushEvent(event);
+});
+document.getElementById("doMarket").addEventListener("click", function () {
+  const oid = Number(document.getElementById("oid").value);
+  nextId = oid + 1;
+  document.getElementById("oid").value = String(nextId);
+  pushEvent({ kind: "market", id: oid, side: document.getElementById("side").value,
+              qty: Number(document.getElementById("qty").value) });
+});
+document.getElementById("doCancel").addEventListener("click", function () {
+  pushEvent({ kind: "cancel", id: Number(document.getElementById("oid").value) });
+});
+draw();
+</script>
+</body>
+</html>
